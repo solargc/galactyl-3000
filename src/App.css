@@ -1,0 +1,118 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #00000a;
+  overflow: hidden;
+  display: block;
+}
+
+.game {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  cursor: text;
+}
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 25% 40%, rgba(40, 0, 90, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 75% 55%, rgba(0, 55, 140, 0.3) 0%, transparent 45%),
+    radial-gradient(circle at 55% 80%, rgba(0, 100, 85, 0.2) 0%, transparent 40%);
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+}
+
+/* HUD */
+.hud {
+  position: absolute;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  z-index: 10;
+  user-select: none;
+}
+
+.stats {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: #aaaadd;
+}
+
+.stat small {
+  font-size: 0.65rem;
+  color: #5555aa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+
+/* Word display */
+.word-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 2rem;
+  letter-spacing: 4px;
+  max-width: 72vw;
+}
+
+.word {
+  display: inline-flex;
+}
+
+.word.done {
+  color: #80ffaa;
+}
+
+.word.upcoming {
+  color: #222244;
+}
+
+.ch {
+  color: #555577;
+  transition: color 0.05s;
+}
+
+.ch.correct {
+  color: #80ffaa;
+  text-shadow: 0 0 12px rgba(100, 255, 150, 0.5);
+}
+
+.ch.wrong {
+  color: #ff4455;
+  text-shadow: 0 0 10px rgba(255, 60, 80, 0.5);
+}
+
+/* Invisible input — focus is managed by the game container */
+.type-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
