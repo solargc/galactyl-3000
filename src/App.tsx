@@ -183,7 +183,7 @@ export default function App() {
   const [frozenActive, setFrozenActive] = useState(false)
 
   const gameOver = timerStarted && timeLeft === 0
-  const shakeClass = !timerStarted || gameOver ? '' : timeLeft < 5 ? ' shake-mid' : timeLeft < 15 ? ' shake-low' : ''
+  const shakeClass = !timerStarted || gameOver ? '' : timeLeft < 5 ? ' shake-mid' : timeLeft < 20 ? ' shake-low' : ''
   gameOverRef.current = gameOver
 
   useEffect(() => {
@@ -430,7 +430,7 @@ export default function App() {
         </div>
       )}
 
-      {timerStarted && !gameOver && timeLeft <= 5 && timeLeft > 0 && (
+      {timerStarted && !gameOver && timeLeft <= 10 && timeLeft > 0 && (
         <div className="damage-overlay" style={{ opacity: 0.4 + (5 - timeLeft) * 0.1 }} />
       )}
 

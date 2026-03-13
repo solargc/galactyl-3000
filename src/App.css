@@ -556,12 +556,23 @@ canvas {
   font-family: 'Courier New', monospace;
   font-size: 2rem;
   letter-spacing: 4px;
-  max-width: 88vw;
+  max-width: 96vw;
 }
 
 @media (max-width: 900px) {
   .hud {
     bottom: 60px;
+  }
+}
+
+@media (max-height: 600px) {
+  .hud {
+    bottom: 20px;
+    gap: 10px;
+  }
+  .word-row {
+    gap: 8px;
+    font-size: 1.5rem;
   }
 }
 
