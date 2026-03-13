@@ -46,17 +46,14 @@ const WORDS = [
   'Uranus', 'Neptune', 'Pluto', 'Europa', 'Titan', 'Ganymede', 'Io',
   'Phobos', 'Deimos', 'Ceres', 'Eris', 'Sedna', 'Halley', 'Hubble',
   'MilkyWay', 'Andromeda', 'Orion', 'Cassini', 'Voyager', 'Kepler',
-  // solarpunk
   'algae', 'bamboo', 'canopy', 'compost', 'mycelium', 'permaculture',
   'rewild', 'spire', 'symbiosis', 'terrarium', 'biolume', 'biome',
   'commune', 'collective', 'rhizome', 'spore', 'habitat', 'flourish',
   'lantern', 'moss', 'fern', 'bloom', 'fungal', 'greenhouse', 'harvest',
-  // exoplanets
   'Kepler22b', 'Kepler452b', 'Kepler186f', 'Kepler62f', 'Kepler69c',
   'HD209458b', 'HD189733b', 'GJ1214b', 'GJ667Cc', 'GJ436b',
   'TRAPPIST1b', 'TRAPPIST1e', 'TRAPPIST1f', 'CoRoT7b', 'CoRoT2b',
-  '55Cancri', '51Pegasi', 'Proxima b', 'LHS1140b', 'K2-18b',
-  // stars
+  '55Cancri', '51Pegasi', 'ProximaB', 'LHS1140b', 'K2-18b',
   'Sirius', 'Vega', 'Rigel', 'Betelgeuse', 'Aldebaran', 'Arcturus',
   'Capella', 'Deneb', 'Altair', 'Fomalhaut', 'Pollux', 'Regulus',
   'Spica', 'Antares', 'Procyon', 'Achernar', 'Canopus', 'Mimosa',
@@ -64,13 +61,10 @@ const WORDS = [
   'Mintaka', 'Bellatrix', 'Saiph', 'Zuben', 'Algol', 'Mira',
   'Castor', 'Adhara', 'Elnath', 'Alioth', 'Dubhe', 'Merak',
   'Alkaid', 'Mizar', 'Alcor', 'Thuban', 'Polaris', 'Schedar',
-  // dystopian
   'blackout', 'quarantine', 'lockdown', 'clone',
-  // akira
   'Tetsuo', 'Kaneda', 'Capsule', 'Esper', 'mutant', 'psychic',
   'telekinesis', 'NeoTokyo', 'Colonel', 'Miyako', 'Otomo', 'psionic',
   'awakening', 'containment', 'corruption', 'rebirth', 'biker', 'Kei',
-  // pod
   'sulfur', 'volcanic', 'lava', 'canyon', 'nitro', 'turbo',
   'skid', 'checkpoint', 'circuit', 'geyser', 'eruption', 'magma',
   'plume', 'vent', 'terrain', 'exhaust', 'rival', 'wreck',
@@ -82,7 +76,7 @@ const NUM_STARS = 80
 const MAX_Z = 1000
 const FOCAL_LENGTH = 500
 const IDLE_SPEED = 1.5
-const KEY_BOOST = 5
+const KEY_BOOST = 8
 const WORD_BONUS = 40
 const MAX_SPEED = 100
 
@@ -114,20 +108,37 @@ function project(x: number, y: number, z: number, cx: number, cy: number) {
   return { sx: x * scale + cx, sy: y * scale + cy, size: scale * 1.5 }
 }
 
-function TimerDisplay({ timeLeft }: { timeLeft: number }) {
+function TimerDisplay({ timeLeft, gameOver }: { timeLeft: number, gameOver: boolean }) {
   const t = 1 - timeLeft / 100
-  const g = Math.round(220 - t * 170)
-  const b = Math.round(60 + t * 160)
+  // start: barely-visible warm white  →  end: light pink like the flyby title
+  const g = Math.round(220 - t * 40)   // 220 → 180
+  const b = Math.round(180 + t * 40)   // 180 → 220
   const size = 0.5 + t * 12.5
-  const glow = 6 + t * 60
   const opacity = 0.3 + t * 0.7
   const color = `rgba(255, ${g}, ${b}, ${opacity})`
+  const textShadow = [
+    `0 0 ${6  + t * 30}px ${color}`,
+    `0 0 ${18 + t * 70}px rgba(255, ${g}, ${b}, ${opacity * 0.75})`,
+    `0 0 ${40 + t * 120}px rgba(255, 140, 210, ${opacity * 0.5})`,
+    `0 0 ${80 + t * 220}px rgba(240, 80, 200, ${opacity * 0.3})`,
+    `0 0 ${140 + t * 360}px rgba(200, 40, 180, ${opacity * 0.15})`,
+  ].join(', ')
+  if (gameOver) {
+    const gc = `rgba(255, 180, 255, 1)`
+    const gs = [
+      `0 0 20px ${gc}`, `0 0 60px rgba(255,140,255,0.9)`,
+      `0 0 120px rgba(240,80,230,0.65)`, `0 0 240px rgba(200,40,200,0.38)`,
+      `0 0 420px rgba(160,0,180,0.15)`,
+    ].join(', ')
+    return (
+      <div className="timer timer-end" style={{ color: gc, textShadow: gs }}>
+        <div>GALACTYL</div>
+        <div>3000</div>
+      </div>
+    )
+  }
   return (
-    <div className="timer" style={{
-      fontSize: `${size}rem`,
-      color,
-      textShadow: `0 0 ${glow}px ${color}`,
-    }}>
+    <div className="timer" style={{ fontSize: `${size}rem`, color, textShadow }}>
       {timeLeft}
     </div>
   )
@@ -141,6 +152,7 @@ export default function App() {
   const roundRef = useRef(0)
   const timeLeftRef = useRef(100)
   const gameOverRef = useRef(false)
+  const gameOverTimeRef = useRef(0)
   const rafRef = useRef(0)
 
   const [words, setWords] = useState(() => randomChunk(10))
@@ -150,19 +162,51 @@ export default function App() {
   const [streak, setStreak] = useState(0)
   const [timeLeft, setTimeLeft] = useState(100)
   const [timerStarted, setTimerStarted] = useState(false)
+  const [fadeOpacity, setFadeOpacity] = useState(0)
+  const [fadeDuration, setFadeDuration] = useState('0s')
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen()
+    else document.exitFullscreen()
+  }, [])
+  const [flybyActive, setFlybyActive] = useState(false)
+  const [saturnActive, setSaturnActive] = useState(false)
+  const [earthActive, setEarthActive] = useState(false)
+  const [lavaActive, setLavaActive] = useState(false)
+  const [frozenActive, setFrozenActive] = useState(false)
 
   const gameOver = timerStarted && timeLeft === 0
   const shakeClass = !timerStarted || gameOver ? '' : timeLeft < 5 ? ' shake-mid' : timeLeft < 15 ? ' shake-low' : ''
   gameOverRef.current = gameOver
 
   useEffect(() => {
-    if (gameOver) flashRef.current = 1
+    if (!timerStarted || timeLeft !== 1) return
+    setFadeDuration('0.8s')
+    setFadeOpacity(1)
+  }, [timeLeft, timerStarted])
+
+  useEffect(() => {
+    if (!gameOver) return
+    gameOverTimeRef.current = Date.now()
+    const t = setTimeout(() => {
+      setFadeDuration('1.4s')
+      setFadeOpacity(0)
+    }, 500)
+    return () => clearTimeout(t)
   }, [gameOver])
 
   useEffect(() => {
     if (!gameOver) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return
+      if (Date.now() - gameOverTimeRef.current < 3000) return
       setWords(randomChunk(10))
       setWordIndex(0)
       setTyped('')
@@ -173,6 +217,13 @@ export default function App() {
       roundRef.current = 0
       speedRef.current = IDLE_SPEED
       completionTimesRef.current = []
+      setFadeOpacity(0)
+      setFadeDuration('0s')
+      setFlybyActive(false)
+      setSaturnActive(false)
+      setEarthActive(false)
+      setLavaActive(false)
+      setFrozenActive(false)
       setTimeout(() => document.getElementById('input')?.focus(), 0)
     }
     window.addEventListener('keydown', onKey)
@@ -181,10 +232,21 @@ export default function App() {
 
   const completionTimesRef = useRef<number[]>([])
   const wordStartRef = useRef(Date.now())
+  const lastKeypressRef = useRef(0)
 
   useEffect(() => {
     timeLeftRef.current = timeLeft
   }, [timeLeft])
+
+  useEffect(() => {
+    if (!timerStarted) return
+    const t1 = setTimeout(() => setFlybyActive(true), 4000)
+    const t2 = setTimeout(() => setSaturnActive(true), 20000)
+    const t3 = setTimeout(() => setEarthActive(true), 40000)
+    const t4 = setTimeout(() => setLavaActive(true), 60000)
+    const t5 = setTimeout(() => setFrozenActive(true), 78000)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5) }
+  }, [timerStarted])
 
   useEffect(() => {
     if (!timerStarted || timeLeft <= 0) return
@@ -219,7 +281,9 @@ export default function App() {
       } else {
         const progress = 1 - timeLeftRef.current / 100
         const minSpeed = IDLE_SPEED + progress * progress * 80
-        speedRef.current = Math.max(minSpeed, speedRef.current * 0.96)
+        const idle = Date.now() - lastKeypressRef.current > 600
+        const decay = idle ? 0.974 : 0.988
+        speedRef.current = Math.max(minSpeed, speedRef.current * decay)
       }
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
@@ -227,11 +291,6 @@ export default function App() {
 
       if (flashRef.current > 0) {
         if (gameOverRef.current) {
-          const f = flashRef.current
-          const alpha = f > 0.5 ? (1 - f) * 2 : f * 2
-          ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`
-          ctx.fillRect(0, 0, W, H)
-          flashRef.current = Math.max(0, flashRef.current - 0.012)
         } else {
           const p = Math.min(roundRef.current / 8, 1)
           const g = Math.round(235 * (1 - p) + 60 * p)
@@ -309,8 +368,12 @@ export default function App() {
       }
 
       if (val.length > typed.length) {
+        lastKeypressRef.current = Date.now()
         speedRef.current = Math.min(speedRef.current + KEY_BOOST, MAX_SPEED)
-        if (!timerStarted) setTimerStarted(true)
+        if (!timerStarted) {
+          wordStartRef.current = Date.now()
+          setTimerStarted(true)
+        }
       }
       setTyped(val)
     },
@@ -321,8 +384,57 @@ export default function App() {
     <div className="game" onClick={() => document.getElementById('input')?.focus()}>
       <div className="aurora" />
       <canvas ref={canvasRef} />
+      <div className="fade-overlay" style={{ opacity: fadeOpacity, transition: `opacity ${fadeDuration} ease` }} />
+      <button className="fullscreen-btn" onClick={(e) => { e.stopPropagation(); toggleFullscreen() }} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+        {isFullscreen ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        )}
+      </button>
 
-      <TimerDisplay timeLeft={timeLeft} />
+      {saturnActive && (
+        <div className="saturn-flyby" onAnimationEnd={() => setSaturnActive(false)}>
+          <div className="saturn-ring saturn-ring-back" />
+          <div className="saturn-body" />
+          <div className="saturn-ring saturn-ring-front" />
+        </div>
+      )}
+
+      {earthActive && (
+        <div className="earth-flyby" onAnimationEnd={() => setEarthActive(false)}>
+          <div className="earth-moon" />
+          <div className="earth-body" />
+        </div>
+      )}
+
+      {lavaActive && (
+        <div className="lava-flyby" onAnimationEnd={() => setLavaActive(false)}>
+          <div className="lava-body" />
+        </div>
+      )}
+
+      {frozenActive && (
+        <div className="frozen-flyby" onAnimationEnd={() => setFrozenActive(false)}>
+          <div className="frozen-body" />
+        </div>
+      )}
+
+      {flybyActive && (
+        <div className="flyby-title" onAnimationEnd={() => setFlybyActive(false)}>
+          GALACTYL 3000
+        </div>
+      )}
+
+      {timerStarted && !gameOver && timeLeft <= 5 && timeLeft > 0 && (
+        <div className="damage-overlay" style={{ opacity: 0.4 + (5 - timeLeft) * 0.1 }} />
+      )}
+
+      <TimerDisplay timeLeft={timeLeft} gameOver={gameOver} />
 
       <div className={`hud${shakeClass}`}>
         <div className={`stats${gameOver ? ' stats-final' : ''}`}>
