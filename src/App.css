@@ -559,20 +559,14 @@ canvas {
   max-width: 96vw;
 }
 
-@media (max-width: 900px) {
+@media (max-height: 750px), (max-width: 900px) {
   .hud {
-    bottom: 60px;
-  }
-}
-
-@media (max-height: 600px) {
-  .hud {
-    bottom: 20px;
+    bottom: 40px;
     gap: 10px;
+    width: 96vw;
   }
   .word-row {
-    gap: 8px;
-    font-size: 1.5rem;
+    gap: 14px;
   }
 }
 
