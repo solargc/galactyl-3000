@@ -6,6 +6,15 @@ const WORDS = [
   'not', 'on', 'with', 'as', 'you', 'do', 'at', 'this', 'but', 'from',
   'they', 'say', 'will', 'one', 'all', 'would', 'there', 'what', 'so',
   'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when',
+  'we', 'him', 'her', 'them', 'our', 'your', 'its', 'my', 'his', 'their',
+  'see', 'look', 'come', 'know', 'take', 'think', 'make', 'find', 'give', 'use',
+  'move', 'live', 'run', 'walk', 'fall', 'pull', 'push', 'hold', 'turn', 'keep',
+  'now', 'just', 'also', 'back', 'only', 'then', 'still', 'down', 'over', 'even',
+  'here', 'never', 'around', 'again', 'away', 'before', 'after', 'through', 'between',
+  'new', 'old', 'high', 'long', 'big', 'small', 'deep', 'far', 'fast', 'slow',
+  'good', 'bad', 'hot', 'cold', 'hard', 'soft', 'clear', 'dark', 'open', 'lost',
+  'world', 'way', 'day', 'man', 'woman', 'time', 'hand', 'life', 'place', 'end',
+  'night', 'home', 'door', 'mind', 'eye', 'face', 'body', 'sky', 'fire', 'water',
   'speed', 'galaxy', 'stars', 'warp', 'space', 'laser', 'orbit', 'comet',
   'nebula', 'void', 'cosmos', 'thrust', 'engine', 'pilot', 'asteroid',
   'spaceship', 'rocket', 'shuttle', 'station', 'satellite', 'capsule', 'lander',
@@ -37,9 +46,39 @@ const WORDS = [
   'Uranus', 'Neptune', 'Pluto', 'Europa', 'Titan', 'Ganymede', 'Io',
   'Phobos', 'Deimos', 'Ceres', 'Eris', 'Sedna', 'Halley', 'Hubble',
   'MilkyWay', 'Andromeda', 'Orion', 'Cassini', 'Voyager', 'Kepler',
+  // solarpunk
+  'algae', 'bamboo', 'canopy', 'compost', 'mycelium', 'permaculture',
+  'rewild', 'spire', 'symbiosis', 'terrarium', 'biolume', 'biome',
+  'commune', 'collective', 'rhizome', 'spore', 'habitat', 'flourish',
+  'lantern', 'moss', 'fern', 'bloom', 'fungal', 'greenhouse', 'harvest',
+  // exoplanets
+  'Kepler22b', 'Kepler452b', 'Kepler186f', 'Kepler62f', 'Kepler69c',
+  'HD209458b', 'HD189733b', 'GJ1214b', 'GJ667Cc', 'GJ436b',
+  'TRAPPIST1b', 'TRAPPIST1e', 'TRAPPIST1f', 'CoRoT7b', 'CoRoT2b',
+  '55Cancri', '51Pegasi', 'Proxima b', 'LHS1140b', 'K2-18b',
+  // stars
+  'Sirius', 'Vega', 'Rigel', 'Betelgeuse', 'Aldebaran', 'Arcturus',
+  'Capella', 'Deneb', 'Altair', 'Fomalhaut', 'Pollux', 'Regulus',
+  'Spica', 'Antares', 'Procyon', 'Achernar', 'Canopus', 'Mimosa',
+  'Acrux', 'Hadar', 'Shaula', 'Nunki', 'Alnitak', 'Alnilam',
+  'Mintaka', 'Bellatrix', 'Saiph', 'Zuben', 'Algol', 'Mira',
+  'Castor', 'Adhara', 'Elnath', 'Alioth', 'Dubhe', 'Merak',
+  'Alkaid', 'Mizar', 'Alcor', 'Thuban', 'Polaris', 'Schedar',
+  // dystopian
+  'blackout', 'quarantine', 'lockdown', 'clone',
+  // akira
+  'Tetsuo', 'Kaneda', 'Capsule', 'Esper', 'mutant', 'psychic',
+  'telekinesis', 'NeoTokyo', 'Colonel', 'Miyako', 'Otomo', 'psionic',
+  'awakening', 'containment', 'corruption', 'rebirth', 'biker', 'Kei',
+  // pod
+  'sulfur', 'volcanic', 'lava', 'canyon', 'nitro', 'turbo',
+  'skid', 'checkpoint', 'circuit', 'geyser', 'eruption', 'magma',
+  'plume', 'vent', 'terrain', 'exhaust', 'rival', 'wreck',
+  'Ignis', 'Vulcan', 'Stinger', 'Raptor', 'Stratos', 'Kronos',
+  'Apex', 'Zephyr', 'Iguana', 'Shark', 'Venom', 'Blaze',
 ]
 
-const NUM_STARS = 250
+const NUM_STARS = 80
 const MAX_Z = 1000
 const FOCAL_LENGTH = 500
 const IDLE_SPEED = 1.5
@@ -75,10 +114,33 @@ function project(x: number, y: number, z: number, cx: number, cy: number) {
   return { sx: x * scale + cx, sy: y * scale + cy, size: scale * 1.5 }
 }
 
+function TimerDisplay({ timeLeft }: { timeLeft: number }) {
+  const t = 1 - timeLeft / 100
+  const g = Math.round(220 - t * 170)
+  const b = Math.round(60 + t * 160)
+  const size = 0.5 + t * 12.5
+  const glow = 6 + t * 60
+  const opacity = 0.3 + t * 0.7
+  const color = `rgba(255, ${g}, ${b}, ${opacity})`
+  return (
+    <div className="timer" style={{
+      fontSize: `${size}rem`,
+      color,
+      textShadow: `0 0 ${glow}px ${color}`,
+    }}>
+      {timeLeft}
+    </div>
+  )
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const starsRef = useRef<Star[]>([])
   const speedRef = useRef(IDLE_SPEED)
+  const flashRef = useRef(0)
+  const roundRef = useRef(0)
+  const timeLeftRef = useRef(100)
+  const gameOverRef = useRef(false)
   const rafRef = useRef(0)
 
   const [words, setWords] = useState(() => randomChunk(10))
@@ -86,9 +148,49 @@ export default function App() {
   const [typed, setTyped] = useState('')
   const [wpm, setWpm] = useState(0)
   const [streak, setStreak] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(100)
+  const [timerStarted, setTimerStarted] = useState(false)
+
+  const gameOver = timerStarted && timeLeft === 0
+  const shakeClass = !timerStarted || gameOver ? '' : timeLeft < 5 ? ' shake-mid' : timeLeft < 15 ? ' shake-low' : ''
+  gameOverRef.current = gameOver
+
+  useEffect(() => {
+    if (gameOver) flashRef.current = 1
+  }, [gameOver])
+
+  useEffect(() => {
+    if (!gameOver) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return
+      setWords(randomChunk(10))
+      setWordIndex(0)
+      setTyped('')
+      setWpm(0)
+      setStreak(0)
+      setTimeLeft(100)
+      setTimerStarted(false)
+      roundRef.current = 0
+      speedRef.current = IDLE_SPEED
+      completionTimesRef.current = []
+      setTimeout(() => document.getElementById('input')?.focus(), 0)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [gameOver])
 
   const completionTimesRef = useRef<number[]>([])
   const wordStartRef = useRef(Date.now())
+
+  useEffect(() => {
+    timeLeftRef.current = timeLeft
+  }, [timeLeft])
+
+  useEffect(() => {
+    if (!timerStarted || timeLeft <= 0) return
+    const id = setInterval(() => setTimeLeft(t => t - 1), 1000)
+    return () => clearInterval(id)
+  }, [timerStarted, timeLeft])
 
   useEffect(() => {
     const canvas = canvasRef.current!
@@ -112,10 +214,34 @@ export default function App() {
       const cx = W / 2
       const cy = H / 2
 
-      speedRef.current = Math.max(IDLE_SPEED, speedRef.current * 0.96)
+      if (gameOverRef.current) {
+        speedRef.current = Math.max(IDLE_SPEED, speedRef.current * 0.97)
+      } else {
+        const progress = 1 - timeLeftRef.current / 100
+        const minSpeed = IDLE_SPEED + progress * progress * 80
+        speedRef.current = Math.max(minSpeed, speedRef.current * 0.96)
+      }
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
       ctx.fillRect(0, 0, W, H)
+
+      if (flashRef.current > 0) {
+        if (gameOverRef.current) {
+          const f = flashRef.current
+          const alpha = f > 0.5 ? (1 - f) * 2 : f * 2
+          ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`
+          ctx.fillRect(0, 0, W, H)
+          flashRef.current = Math.max(0, flashRef.current - 0.012)
+        } else {
+          const p = Math.min(roundRef.current / 8, 1)
+          const g = Math.round(235 * (1 - p) + 60 * p)
+          const b = Math.round(50 * (1 - p) + 200 * p)
+          const alpha = flashRef.current * (0.06 + p * 0.18)
+          ctx.fillStyle = `rgba(255, ${g}, ${b}, ${alpha})`
+          ctx.fillRect(0, 0, W, H)
+          flashRef.current = Math.max(0, flashRef.current - 0.04)
+        }
+      }
 
       for (const star of starsRef.current) {
         star.prevZ = star.z
@@ -137,6 +263,7 @@ export default function App() {
         ctx.stroke()
       }
 
+
       rafRef.current = requestAnimationFrame(tick)
     }
 
@@ -146,6 +273,7 @@ export default function App() {
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (gameOver) return
       const val = e.target.value
 
       if (val.endsWith(' ')) {
@@ -167,6 +295,9 @@ export default function App() {
           if (wordIndex + 1 >= words.length) {
             setWords(randomChunk(10))
             setWordIndex(0)
+            roundRef.current += 1
+            flashRef.current = 1
+            speedRef.current = Math.min(speedRef.current + 60, MAX_SPEED)
           } else {
             setWordIndex((i) => i + 1)
           }
@@ -179,10 +310,11 @@ export default function App() {
 
       if (val.length > typed.length) {
         speedRef.current = Math.min(speedRef.current + KEY_BOOST, MAX_SPEED)
+        if (!timerStarted) setTimerStarted(true)
       }
       setTyped(val)
     },
-    [typed, words, wordIndex],
+    [typed, words, wordIndex, timerStarted, gameOver],
   )
 
   return (
@@ -190,33 +322,39 @@ export default function App() {
       <div className="aurora" />
       <canvas ref={canvasRef} />
 
-      <div className="hud">
-        <div className="stats">
-          <span className="stat">{wpm} <small>WPM</small></span>
-          <span className="stat">{streak} <small>words</small></span>
+      <TimerDisplay timeLeft={timeLeft} />
+
+      <div className={`hud${shakeClass}`}>
+        <div className={`stats${gameOver ? ' stats-final' : ''}`}>
+          <span className="stat-number">{wpm}</span>
+          <span className="stat-label">WPM</span>
+          <span className="stat-number">{streak}</span>
+          <span className="stat-label">words</span>
         </div>
 
-        <div className="word-row">
-          {words.map((w, wi) => {
-            if (wi < wordIndex) {
-              return <span key={wi} className="word done">{w}</span>
-            }
-            if (wi === wordIndex) {
-              return (
-                <span key={wi} className="word">
-                  {w.split('').map((ch, i) => {
-                    const cls =
-                      i < typed.length
-                        ? typed[i] === ch ? 'ch correct' : 'ch wrong'
-                        : 'ch'
-                    return <span key={i} className={cls}>{ch}</span>
-                  })}
-                </span>
-              )
-            }
-            return <span key={wi} className="word upcoming">{w}</span>
-          })}
-        </div>
+        {!gameOver && (
+          <div className="word-row">
+            {words.map((w, wi) => {
+              if (wi < wordIndex) {
+                return <span key={wi} className="word done">{w}</span>
+              }
+              if (wi === wordIndex) {
+                return (
+                  <span key={wi} className="word">
+                    {w.split('').map((ch, i) => {
+                      const cls =
+                        i < typed.length
+                          ? typed[i] === ch ? 'ch correct' : 'ch wrong'
+                          : 'ch'
+                      return <span key={i} className={cls}>{ch}</span>
+                    })}
+                  </span>
+                )
+              }
+              return <span key={wi} className="word upcoming">{w}</span>
+            })}
+          </div>
+        )}
 
         <input
           id="input"
@@ -235,6 +373,7 @@ export default function App() {
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
+          disabled={gameOver}
         />
       </div>
     </div>
