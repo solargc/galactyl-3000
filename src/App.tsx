@@ -76,8 +76,8 @@ const NUM_STARS = 80
 const MAX_Z = 1000
 const FOCAL_LENGTH = 500
 const IDLE_SPEED = 1.5
-const KEY_BOOST = 8
-const WORD_BONUS = 40
+const KEY_BOOST = 3
+const WORD_BONUS = 20
 const MAX_SPEED = 100
 
 interface Star {
@@ -146,6 +146,7 @@ function TimerDisplay({ timeLeft, gameOver }: { timeLeft: number, gameOver: bool
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const gameRef = useRef<HTMLDivElement>(null)
   const starsRef = useRef<Star[]>([])
   const speedRef = useRef(IDLE_SPEED)
   const flashRef = useRef(0)
@@ -165,6 +166,7 @@ export default function App() {
   const [fadeOpacity, setFadeOpacity] = useState(0)
   const [fadeDuration, setFadeDuration] = useState('0s')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [auroraAnim, setAuroraAnim] = useState<{cls: string, key: number}>({cls: '', key: 0})
 
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement)
@@ -195,17 +197,21 @@ export default function App() {
   useEffect(() => {
     if (!gameOver) return
     gameOverTimeRef.current = Date.now()
-    const t = setTimeout(() => {
+    const t1 = setTimeout(() => {
+      starsRef.current = Array.from({ length: NUM_STARS }, () => createStar(true))
+      speedRef.current = IDLE_SPEED
+    }, 400)
+    const t2 = setTimeout(() => {
       setFadeDuration('1.4s')
       setFadeOpacity(0)
     }, 500)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [gameOver])
 
   useEffect(() => {
     if (!gameOver) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter') return
+      if (e.key !== 'Enter' && e.key !== ' ') return
       if (Date.now() - gameOverTimeRef.current < 3000) return
       setWords(randomChunk(10))
       setWordIndex(0)
@@ -229,6 +235,16 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [gameOver])
+
+  const triggerMistake = useCallback(() => {
+    flashRef.current = 1
+    const el = gameRef.current
+    if (el) {
+      el.classList.remove('shake-mistake')
+      void el.offsetWidth
+      el.classList.add('shake-mistake')
+    }
+  }, [])
 
   const completionTimesRef = useRef<number[]>([])
   const wordStartRef = useRef(Date.now())
@@ -280,26 +296,19 @@ export default function App() {
         speedRef.current = Math.max(IDLE_SPEED, speedRef.current * 0.97)
       } else {
         const progress = 1 - timeLeftRef.current / 100
-        const minSpeed = IDLE_SPEED + progress * progress * 80
-        const idle = Date.now() - lastKeypressRef.current > 600
-        const decay = idle ? 0.974 : 0.988
+        const minSpeed = IDLE_SPEED + progress * progress * 25
+        const idle = Date.now() - lastKeypressRef.current > 300
+        const decay = idle ? 0.96 : 0.988
         speedRef.current = Math.max(minSpeed, speedRef.current * decay)
       }
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
       ctx.fillRect(0, 0, W, H)
 
-      if (flashRef.current > 0) {
-        if (gameOverRef.current) {
-        } else {
-          const p = Math.min(roundRef.current / 8, 1)
-          const g = Math.round(235 * (1 - p) + 60 * p)
-          const b = Math.round(50 * (1 - p) + 200 * p)
-          const alpha = flashRef.current * (0.06 + p * 0.18)
-          ctx.fillStyle = `rgba(255, ${g}, ${b}, ${alpha})`
-          ctx.fillRect(0, 0, W, H)
-          flashRef.current = Math.max(0, flashRef.current - 0.04)
-        }
+      if (flashRef.current > 0 && !gameOverRef.current) {
+        ctx.fillStyle = `rgba(255, 160, 100, ${flashRef.current * 0.05})`
+        ctx.fillRect(0, 0, W, H)
+        flashRef.current = Math.max(0, flashRef.current - 0.06)
       }
 
       for (const star of starsRef.current) {
@@ -347,21 +356,25 @@ export default function App() {
           const avgMsPerWord = totalMs / completionTimesRef.current.length
           setWpm(Math.round(60000 / avgMsPerWord))
 
+          const progress = 1 - timeLeftRef.current / 100
+          const boostMult = 1 + progress * 3
           wordStartRef.current = Date.now()
-          speedRef.current = Math.min(speedRef.current + WORD_BONUS, MAX_SPEED)
+          setAuroraAnim(prev => ({cls: 'aurora-pulse', key: prev.key + 1}))
+          speedRef.current = Math.min(speedRef.current + WORD_BONUS * boostMult, MAX_SPEED)
           setStreak((s) => s + 1)
 
           if (wordIndex + 1 >= words.length) {
             setWords(randomChunk(10))
             setWordIndex(0)
             roundRef.current += 1
-            flashRef.current = 1
-            speedRef.current = Math.min(speedRef.current + 60, MAX_SPEED)
+            speedRef.current = Math.min(speedRef.current + 30 * boostMult, MAX_SPEED)
+            setAuroraAnim(prev => ({cls: 'aurora-surge', key: prev.key + 1}))
           } else {
             setWordIndex((i) => i + 1)
           }
           setTyped('')
         } else {
+          triggerMistake()
           setTyped(attempt)
         }
         return
@@ -369,7 +382,12 @@ export default function App() {
 
       if (val.length > typed.length) {
         lastKeypressRef.current = Date.now()
-        speedRef.current = Math.min(speedRef.current + KEY_BOOST, MAX_SPEED)
+        const progress = 1 - timeLeftRef.current / 100
+        speedRef.current = Math.min(speedRef.current + KEY_BOOST * (1 + progress * 3), MAX_SPEED)
+        const newCharPos = typed.length
+        if (newCharPos < words[wordIndex].length && val[newCharPos] !== words[wordIndex][newCharPos]) {
+          triggerMistake()
+        }
         if (!timerStarted) {
           wordStartRef.current = Date.now()
           setTimerStarted(true)
@@ -377,12 +395,16 @@ export default function App() {
       }
       setTyped(val)
     },
-    [typed, words, wordIndex, timerStarted, gameOver],
+    [typed, words, wordIndex, timerStarted, gameOver, triggerMistake],
   )
 
   return (
-    <div className="game" onClick={() => document.getElementById('input')?.focus()}>
-      <div className="aurora" />
+    <div ref={gameRef} className="game" onClick={() => document.getElementById('input')?.focus()}>
+      <div
+        key={auroraAnim.key}
+        className={`aurora${gameOver ? ' aurora-idle' : ''}${auroraAnim.cls ? ' ' + auroraAnim.cls : ''}`}
+        onAnimationEnd={() => setAuroraAnim(prev => ({...prev, cls: ''}))}
+      />
       <canvas ref={canvasRef} />
       <div className="fade-overlay" style={{ opacity: fadeOpacity, transition: `opacity ${fadeDuration} ease` }} />
       <button className="fullscreen-btn" onClick={(e) => { e.stopPropagation(); toggleFullscreen() }} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
