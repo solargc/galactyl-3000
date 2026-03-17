@@ -626,6 +626,13 @@ canvas {
   .word-row {
     gap: 14px;
   }
+  .timer-gameover {
+    font-size: 4rem;
+    top: 42%;
+  }
+  .start-hint {
+    margin-top: 0.8rem;
+  }
 }
 
 .word {
@@ -637,11 +644,11 @@ canvas {
 }
 
 .word.upcoming {
-  color: #222244;
+  color: #606088;
 }
 
 .ch {
-  color: #555577;
+  color: #aaaacc;
   transition: color 0.05s;
 }
 

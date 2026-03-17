@@ -113,7 +113,7 @@ function project(x: number, y: number, z: number, cx: number, cy: number) {
   return { sx: x * scale + cx, sy: y * scale + cy, size: scale * 1.5 }
 }
 
-function TimerDisplay({ timeLeft, showTitle, isPaused }: { timeLeft: number, showTitle: boolean, isPaused: boolean }) {
+function TimerDisplay({ timeLeft, showTitle, isPaused, gameOver }: { timeLeft: number, showTitle: boolean, isPaused: boolean, gameOver: boolean }) {
   const t = 1 - timeLeft / 100
   const g = Math.round(220 - t * 40)
   const b = Math.round(180 + t * 40)
@@ -135,7 +135,7 @@ function TimerDisplay({ timeLeft, showTitle, isPaused }: { timeLeft: number, sho
       `0 0 420px rgba(160,0,180,0.10)`,
     ].join(', ')
     return (
-      <div className="timer timer-end" style={{ color: gc, textShadow: gs }}>
+      <div className={`timer timer-end${gameOver ? ' timer-gameover' : ''}`} style={{ color: gc, textShadow: gs }}>
         <div>GALACTYL</div>
         <div>3000</div>
         <div className="start-hint">{isPaused ? 'click to focus' : 'press space or enter to start'}</div>
@@ -508,15 +508,15 @@ export default function App() {
         <div className="damage-overlay" style={{ opacity: 0.4 + (5 - timeLeft) * 0.1 }} />
       )}
 
-      {(!isPaused || isTitleScreen) && <TimerDisplay timeLeft={timeLeft} showTitle={isTitleScreen} isPaused={isPaused} />}
+      {(!isPaused || isTitleScreen) && <TimerDisplay timeLeft={timeLeft} showTitle={isTitleScreen} isPaused={isPaused} gameOver={gameOver} />}
 
       <div className={`hud${shakeClass}`}>
-        <div className={`stats${gameOver ? ' stats-final' : ''}`}>
+        {timerStarted && <div className={`stats${gameOver ? ' stats-final' : ''}`}>
           <span className="stat-number">{wpm}</span>
           <span className="stat-label">WPM</span>
           <span className="stat-number">{streak}</span>
           <span className="stat-label">words</span>
-        </div>
+        </div>}
 
         {timerStarted && !gameOver && (
           <div className="word-row">
