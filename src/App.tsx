@@ -20,7 +20,7 @@ const WORDS = [
   'spaceship', 'rocket', 'shuttle', 'station', 'satellite', 'capsule', 'lander',
   'cockpit', 'helm', 'airlock', 'viewport', 'bridge', 'booster', 'nozzle',
   'throttle', 'heading', 'bearing', 'trajectory', 'waypoint', 'intercept',
-  'liftoff', 'reentry', 'jettison', 'deorbit', 'rendezvous', 'approach',
+  'liftoff', 'reentry', 'jettison', 'deorbit', 'approach',
   'pitch', 'roll', 'yaw', 'parsec', 'lightyear', 'redshift', 'blueshift',
   'photon', 'pulsar', 'quasar', 'signal', 'reactor', 'hyperdrive',
   'plasma', 'gravity', 'solar', 'lunar', 'stellar', 'nova', 'probe',
@@ -61,6 +61,11 @@ const WORDS = [
   'Mintaka', 'Bellatrix', 'Saiph', 'Zuben', 'Algol', 'Mira',
   'Castor', 'Adhara', 'Elnath', 'Alioth', 'Dubhe', 'Merak',
   'Alkaid', 'Mizar', 'Alcor', 'Thuban', 'Polaris', 'Schedar',
+  'meteor', 'meteorite', 'astronaut', 'cosmonaut', 'universe', 'supernova',
+  'telescope', 'observatory', 'mission', 'countdown', 'abort', 'debris',
+  'impact', 'vacuum', 'oxygen', 'fuel', 'payload', 'cargo', 'spacewalk',
+  'tether', 'splashdown', 'microgravity', 'weightless', 'cosmic', 'interstellar',
+  'neutron', 'dwarf', 'atmosphere',
   'blackout', 'quarantine', 'lockdown', 'clone',
   'Tetsuo', 'Kaneda', 'Capsule', 'Esper', 'mutant', 'psychic',
   'telekinesis', 'NeoTokyo', 'Colonel', 'Miyako', 'Otomo', 'psionic',
@@ -108,11 +113,10 @@ function project(x: number, y: number, z: number, cx: number, cy: number) {
   return { sx: x * scale + cx, sy: y * scale + cy, size: scale * 1.5 }
 }
 
-function TimerDisplay({ timeLeft, gameOver }: { timeLeft: number, gameOver: boolean }) {
+function TimerDisplay({ timeLeft, showTitle, isPaused }: { timeLeft: number, showTitle: boolean, isPaused: boolean }) {
   const t = 1 - timeLeft / 100
-  // start: barely-visible warm white  →  end: light pink like the flyby title
-  const g = Math.round(220 - t * 40)   // 220 → 180
-  const b = Math.round(180 + t * 40)   // 180 → 220
+  const g = Math.round(220 - t * 40)
+  const b = Math.round(180 + t * 40)
   const size = 0.5 + t * 12.5
   const opacity = 0.3 + t * 0.7
   const color = `rgba(255, ${g}, ${b}, ${opacity})`
@@ -123,17 +127,18 @@ function TimerDisplay({ timeLeft, gameOver }: { timeLeft: number, gameOver: bool
     `0 0 ${80 + t * 220}px rgba(240, 80, 200, ${opacity * 0.3})`,
     `0 0 ${140 + t * 360}px rgba(200, 40, 180, ${opacity * 0.15})`,
   ].join(', ')
-  if (gameOver) {
-    const gc = `rgba(255, 180, 255, 1)`
+  if (showTitle) {
+    const gc = `rgba(255, 180, 242, 1)`
     const gs = [
-      `0 0 20px ${gc}`, `0 0 60px rgba(255,140,255,0.9)`,
-      `0 0 120px rgba(240,80,230,0.65)`, `0 0 240px rgba(200,40,200,0.38)`,
-      `0 0 420px rgba(160,0,180,0.15)`,
+      `0 0 20px rgba(255,140,242,0.9)`, `0 0 60px rgba(242,80,218,0.65)`,
+      `0 0 120px rgba(212,50,198,0.42)`, `0 0 240px rgba(180,10,182,0.22)`,
+      `0 0 420px rgba(160,0,180,0.10)`,
     ].join(', ')
     return (
       <div className="timer timer-end" style={{ color: gc, textShadow: gs }}>
         <div>GALACTYL</div>
         <div>3000</div>
+        <div className="start-hint">{isPaused ? 'click to focus' : 'press space or enter to start'}</div>
       </div>
     )
   }
@@ -155,6 +160,9 @@ export default function App() {
   const gameOverRef = useRef(false)
   const gameOverTimeRef = useRef(0)
   const rafRef = useRef(0)
+  const isPausedRef = useRef(!document.hasFocus())
+  const flybyRemainingRef = useRef({ flyby: 4000, saturn: 20000, earth: 40000, lava: 60000, frozen: 78000 })
+  const flybyScheduledAtRef = useRef(0)
 
   const [words, setWords] = useState(() => randomChunk(10))
   const [wordIndex, setWordIndex] = useState(0)
@@ -167,6 +175,8 @@ export default function App() {
   const [fadeDuration, setFadeDuration] = useState('0s')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [auroraAnim, setAuroraAnim] = useState<{cls: string, key: number}>({cls: '', key: 0})
+  const [isPaused, setIsPaused] = useState(() => !document.hasFocus())
+  const [gameKey, setGameKey] = useState(0)
 
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement)
@@ -185,6 +195,7 @@ export default function App() {
   const [frozenActive, setFrozenActive] = useState(false)
 
   const gameOver = timerStarted && timeLeft === 0
+  const isTitleScreen = !timerStarted || gameOver
   const shakeClass = !timerStarted || gameOver ? '' : timeLeft < 5 ? ' shake-mid' : timeLeft < 20 ? ' shake-low' : ''
   gameOverRef.current = gameOver
 
@@ -209,20 +220,22 @@ export default function App() {
   }, [gameOver])
 
   useEffect(() => {
-    if (!gameOver) return
+    if (!isTitleScreen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' && e.key !== ' ') return
-      if (Date.now() - gameOverTimeRef.current < 3000) return
+      if (gameOver && Date.now() - gameOverTimeRef.current < 1000) return
+      e.preventDefault()
       setWords(randomChunk(10))
       setWordIndex(0)
       setTyped('')
       setWpm(0)
       setStreak(0)
       setTimeLeft(100)
-      setTimerStarted(false)
+      setTimerStarted(true)
       roundRef.current = 0
       speedRef.current = IDLE_SPEED
       completionTimesRef.current = []
+      wordStartRef.current = Date.now()
       setFadeOpacity(0)
       setFadeDuration('0s')
       setFlybyActive(false)
@@ -230,11 +243,14 @@ export default function App() {
       setEarthActive(false)
       setLavaActive(false)
       setFrozenActive(false)
+      flybyRemainingRef.current = { flyby: 4000, saturn: 20000, earth: 40000, lava: 60000, frozen: 78000 }
+      flybyScheduledAtRef.current = 0
+      setGameKey(k => k + 1)
       setTimeout(() => document.getElementById('input')?.focus(), 0)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [gameOver])
+  }, [isTitleScreen, gameOver])
 
   const triggerMistake = useCallback(() => {
     flashRef.current = 1
@@ -256,19 +272,51 @@ export default function App() {
 
   useEffect(() => {
     if (!timerStarted) return
-    const t1 = setTimeout(() => setFlybyActive(true), 4000)
-    const t2 = setTimeout(() => setSaturnActive(true), 20000)
-    const t3 = setTimeout(() => setEarthActive(true), 40000)
-    const t4 = setTimeout(() => setLavaActive(true), 60000)
-    const t5 = setTimeout(() => setFrozenActive(true), 78000)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5) }
-  }, [timerStarted])
+    if (isPaused) {
+      if (flybyScheduledAtRef.current > 0) {
+        const elapsed = Date.now() - flybyScheduledAtRef.current
+        const r = flybyRemainingRef.current
+        if (r.flyby > 0)  r.flyby  = Math.max(0, r.flyby  - elapsed)
+        if (r.saturn > 0) r.saturn = Math.max(0, r.saturn - elapsed)
+        if (r.earth > 0)  r.earth  = Math.max(0, r.earth  - elapsed)
+        if (r.lava > 0)   r.lava   = Math.max(0, r.lava   - elapsed)
+        if (r.frozen > 0) r.frozen = Math.max(0, r.frozen - elapsed)
+        flybyScheduledAtRef.current = 0
+      }
+      return
+    }
+    flybyScheduledAtRef.current = Date.now()
+    const r = flybyRemainingRef.current
+    const timers: ReturnType<typeof setTimeout>[] = []
+    if (r.flyby > 0)  timers.push(setTimeout(() => { r.flyby  = 0; setFlybyActive(true)   }, r.flyby))
+    if (r.saturn > 0) timers.push(setTimeout(() => { r.saturn = 0; setSaturnActive(true)  }, r.saturn))
+    if (r.earth > 0)  timers.push(setTimeout(() => { r.earth  = 0; setEarthActive(true)   }, r.earth))
+    if (r.lava > 0)   timers.push(setTimeout(() => { r.lava   = 0; setLavaActive(true)    }, r.lava))
+    if (r.frozen > 0) timers.push(setTimeout(() => { r.frozen = 0; setFrozenActive(true)  }, r.frozen))
+    return () => timers.forEach(clearTimeout)
+  }, [timerStarted, isPaused, gameKey])
+
+  useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
 
   useEffect(() => {
-    if (!timerStarted || timeLeft <= 0) return
+    const onBlur = () => setIsPaused(true)
+    const onFocus = () => setIsPaused(false)
+    const onVisibility = () => setIsPaused(document.hidden)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!timerStarted || timeLeft <= 0 || isPaused) return
     const id = setInterval(() => setTimeLeft(t => t - 1), 1000)
     return () => clearInterval(id)
-  }, [timerStarted, timeLeft])
+  }, [timerStarted, timeLeft, isPaused])
 
   useEffect(() => {
     const canvas = canvasRef.current!
@@ -294,7 +342,7 @@ export default function App() {
 
       if (gameOverRef.current) {
         speedRef.current = Math.max(IDLE_SPEED, speedRef.current * 0.97)
-      } else {
+      } else if (!isPausedRef.current) {
         const progress = 1 - timeLeftRef.current / 100
         const minSpeed = IDLE_SPEED + progress * progress * 25
         const idle = Date.now() - lastKeypressRef.current > 300
@@ -388,25 +436,29 @@ export default function App() {
         if (newCharPos < words[wordIndex].length && val[newCharPos] !== words[wordIndex][newCharPos]) {
           triggerMistake()
         }
-        if (!timerStarted) {
-          wordStartRef.current = Date.now()
-          setTimerStarted(true)
-        }
       }
       setTyped(val)
     },
-    [typed, words, wordIndex, timerStarted, gameOver, triggerMistake],
+    [typed, words, wordIndex, gameOver, triggerMistake],
   )
 
   return (
     <div ref={gameRef} className="game" onClick={() => document.getElementById('input')?.focus()}>
       <div
         key={auroraAnim.key}
-        className={`aurora${gameOver ? ' aurora-idle' : ''}${auroraAnim.cls ? ' ' + auroraAnim.cls : ''}`}
+        className={`aurora${isTitleScreen ? ' aurora-idle' : ''}${auroraAnim.cls ? ' ' + auroraAnim.cls : ''}`}
         onAnimationEnd={() => setAuroraAnim(prev => ({...prev, cls: ''}))}
       />
       <canvas ref={canvasRef} />
       <div className="fade-overlay" style={{ opacity: fadeOpacity, transition: `opacity ${fadeDuration} ease` }} />
+      {isPaused && timerStarted && !gameOver && (
+        <div className="pause-overlay">
+          <div className="pause-content">
+            <div className="pause-message">PAUSED</div>
+            <div className="pause-hint">focus window to resume</div>
+          </div>
+        </div>
+      )}
       <button className="fullscreen-btn" onClick={(e) => { e.stopPropagation(); toggleFullscreen() }} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
         {isFullscreen ? (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -456,7 +508,7 @@ export default function App() {
         <div className="damage-overlay" style={{ opacity: 0.4 + (5 - timeLeft) * 0.1 }} />
       )}
 
-      <TimerDisplay timeLeft={timeLeft} gameOver={gameOver} />
+      {(!isPaused || isTitleScreen) && <TimerDisplay timeLeft={timeLeft} showTitle={isTitleScreen} isPaused={isPaused} />}
 
       <div className={`hud${shakeClass}`}>
         <div className={`stats${gameOver ? ' stats-final' : ''}`}>
@@ -466,7 +518,7 @@ export default function App() {
           <span className="stat-label">words</span>
         </div>
 
-        {!gameOver && (
+        {timerStarted && !gameOver && (
           <div className="word-row">
             {words.map((w, wi) => {
               if (wi < wordIndex) {
@@ -507,7 +559,7 @@ export default function App() {
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          disabled={gameOver}
+          disabled={isTitleScreen}
         />
       </div>
     </div>
